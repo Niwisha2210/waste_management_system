@@ -21,5 +21,7 @@ router.put('/:complaintId/status', verifyAuth, authorizeRole('admin'), complaint
 
 // Assign complaint to worker (Admin only)
 router.put('/:complaintId/assign', verifyAuth, authorizeRole('admin'), complaintController.assignComplaint);
+router.put('/:complaintId/take', verifyAuth, authorizeRole('worker'), complaintController.takeComplaint);
+router.put('/:complaintId/complete', verifyAuth, authorizeRole('worker'), complaintController.completeComplaint);
 
 module.exports = router;
