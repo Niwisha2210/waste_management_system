@@ -33,6 +33,16 @@ async function register(req, res) {
       [name, email, hashedPassword, phone, role, address, city]
     );
 
+    // If registering as a worker, also create their worker profile row.
+    // This is required so complaints/routes can be assigned to them later.
+    if (role === 'worker') {
+      const employee_id = `EMP-${Date.now()}`;
+      await connection.execute(
+        'INSERT INTO workers (user_id, employee_id) VALUES (?, ?)',
+        [result.insertId, employee_id]
+      );
+    }
+
     await connection.release();
 
     // Generate token

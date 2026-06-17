@@ -213,10 +213,119 @@ async function assignComplaint(req, res) {
   }
 }
 
+// Helper: get the workers.id row for a logged-in worker user, creating it if missing
+// (covers worker accounts created before worker profiles were auto-created on register)
+async function getOrCreateWorkerRowId(connection, userId) {
+  const [rows] = await connection.execute(
+    'SELECT id FROM workers WHERE user_id = ?',
+    [userId]
+  );
+  if (rows.length > 0) {
+    return rows[0].id;
+  }
+  const employee_id = `EMP-${Date.now()}`;
+  const [result] = await connection.execute(
+    'INSERT INTO workers (user_id, employee_id) VALUES (?, ?)',
+    [userId, employee_id]
+  );
+  return result.insertId;
+}
+
+// Worker takes (self-assigns) a complaint that hasn't been taken yet
+async function takeComplaint(req, res) {
+  try {
+    const { complaintId } = req.params;
+    const userId = req.user.id;
+
+    const connection = await pool.getConnection();
+
+    const workerRowId = await getOrCreateWorkerRowId(connection, userId);
+
+    const [complaints] = await connection.execute(
+      'SELECT * FROM complaints WHERE id = ?',
+      [complaintId]
+    );
+
+    if (complaints.length === 0) {
+      await connection.release();
+      return res.status(404).json(errorResponse(404, 'Complaint not found'));
+    }
+
+    if (complaints[0].assigned_worker_id) {
+      await connection.release();
+      return res.status(409).json(errorResponse(409, 'Complaint has already been taken by a worker'));
+    }
+
+    await connection.execute(
+      'UPDATE complaints SET assigned_worker_id = ?, status = ? WHERE id = ?',
+      [workerRowId, 'in_progress', complaintId]
+    );
+
+    const [updatedComplaint] = await connection.execute(
+      'SELECT c.*, w.user_id as worker_id FROM complaints c LEFT JOIN workers w ON c.assigned_worker_id = w.id WHERE c.id = ?',
+      [complaintId]
+    );
+
+    await connection.release();
+
+    return res.status(200).json(successResponse(updatedComplaint[0], 'Complaint taken successfully'));
+  } catch (err) {
+    console.error('Take complaint error:', err);
+    return res.status(500).json(errorResponse(500, 'Failed to take complaint', err.message));
+  }
+}
+
+// Worker marks a complaint they took as completed
+async function completeComplaint(req, res) {
+  try {
+    const { complaintId } = req.params;
+    const { resolution_notes } = req.body;
+    const userId = req.user.id;
+
+    const connection = await pool.getConnection();
+
+    const workerRowId = await getOrCreateWorkerRowId(connection, userId);
+
+    const [complaints] = await connection.execute(
+      'SELECT * FROM complaints WHERE id = ?',
+      [complaintId]
+    );
+
+    if (complaints.length === 0) {
+      await connection.release();
+      return res.status(404).json(errorResponse(404, 'Complaint not found'));
+    }
+
+    if (complaints[0].assigned_worker_id !== workerRowId) {
+      await connection.release();
+      return res.status(403).json(errorResponse(403, 'You can only complete complaints you have taken'));
+    }
+
+    await connection.execute(
+      `UPDATE complaints SET status = 'resolved', resolution_notes = ?, resolved_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [resolution_notes || 'Collected and cleared by worker', complaintId]
+    );
+
+    const [updatedComplaint] = await connection.execute(
+      'SELECT c.*, w.user_id as worker_id FROM complaints c LEFT JOIN workers w ON c.assigned_worker_id = w.id WHERE c.id = ?',
+      [complaintId]
+    );
+
+    await connection.release();
+
+    return res.status(200).json(successResponse(updatedComplaint[0], 'Complaint marked as completed'));
+  } catch (err) {
+    console.error('Complete complaint error:', err);
+    return res.status(500).json(errorResponse(500, 'Failed to complete complaint', err.message));
+  }
+}
+
 module.exports = {
   createComplaint,
   getUserComplaints,
   getAllComplaints,
   updateComplaintStatus,
-  assignComplaint
+  assignComplaint,
+  takeComplaint,
+  completeComplaint
 };

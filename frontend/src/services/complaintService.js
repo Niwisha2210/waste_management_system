@@ -30,3 +30,13 @@ export const updateComplaintStatus = (complaintId, statusData) => {
 export const assignComplaint = (complaintId, workerId) => {
   return apiClient.put(`/complaints/${complaintId}/assign`, { assigned_worker_id: workerId });
 };
+
+// Worker takes (self-assigns) a complaint
+export const takeComplaint = (complaintId) => {
+  return apiClient.put(`/complaints/${complaintId}/take`);
+};
+
+// Worker marks a complaint they took as completed
+export const completeComplaint = (complaintId, resolution_notes = '') => {
+  return apiClient.put(`/complaints/${complaintId}/complete`, { resolution_notes });
+};

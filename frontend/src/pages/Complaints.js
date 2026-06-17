@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { FiImage, FiMapPin } from 'react-icons/fi';
 import AuthContext from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { createComplaint, getUserComplaints, getAllComplaints } from '../services/complaintService';
+import { createComplaint, getUserComplaints, getAllComplaints, takeComplaint, completeComplaint } from '../services/complaintService';
 import './Complaints.css';
 import { toast } from 'react-toastify';
 
@@ -66,6 +66,26 @@ function Complaints() {
       fetchComplaints();
     } catch (error) {
       toast.error('Failed to file complaint');
+    }
+  };
+
+  const handleTake = async (complaintId) => {
+    try {
+      await takeComplaint(complaintId);
+      toast.success('Complaint taken. Get out there and clear it!');
+      fetchComplaints();
+    } catch (error) {
+      toast.error(error.message || 'Failed to take complaint');
+    }
+  };
+
+  const handleComplete = async (complaintId) => {
+    try {
+      await completeComplaint(complaintId);
+      toast.success('Complaint marked as completed');
+      fetchComplaints();
+    } catch (error) {
+      toast.error(error.message || 'Failed to mark complaint as completed');
     }
   };
 
@@ -218,6 +238,28 @@ function Complaints() {
               <div className="complaint-footer">
                 <small>Filed: {new Date(complaint.created_at).toLocaleDateString()}</small>
               </div>
+
+              {user?.role === 'worker' && complaint.status === 'pending' && (
+                <div className="complaint-actions">
+                  <button className="btn-take" onClick={() => handleTake(complaint.id)}>
+                    Take Complaint
+                  </button>
+                </div>
+              )}
+
+              {user?.role === 'worker' && complaint.status === 'in_progress' && complaint.worker_id === user.id && (
+                <div className="complaint-actions">
+                  <button className="btn-complete" onClick={() => handleComplete(complaint.id)}>
+                    Mark as Completed
+                  </button>
+                </div>
+              )}
+
+              {user?.role === 'worker' && complaint.status === 'in_progress' && complaint.worker_id !== user.id && (
+                <div className="complaint-actions">
+                  <small className="taken-note">Already taken by another worker</small>
+                </div>
+              )}
 
               {complaint.status === 'resolved' && (
                 <div className="resolution-notes">

@@ -19,15 +19,20 @@ function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, trendsRes, complaintRes] = await Promise.all([
-          getDashboardAnalytics(),
-          getWasteTrends(),
-          getComplaintAnalytics()
-        ]);
-
+        // waste-trends and complaint analytics are admin-only on the backend,
+        // so only request them for admins to avoid 403s breaking the dashboard
+        // for citizens and workers.
+        const analyticsRes = await getDashboardAnalytics();
         setAnalytics(analyticsRes.data);
-        setTrends(trendsRes.data);
-        setComplaints(complaintRes.data);
+
+        if (user?.role === 'admin') {
+          const [trendsRes, complaintRes] = await Promise.all([
+            getWasteTrends(),
+            getComplaintAnalytics()
+          ]);
+          setTrends(trendsRes.data);
+          setComplaints(complaintRes.data);
+        }
       } catch (error) {
         toast.error('Failed to load dashboard data');
       } finally {
@@ -36,7 +41,7 @@ function Dashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   if (loading) return <LoadingSpinner fullScreen />;
 

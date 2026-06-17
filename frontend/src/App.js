@@ -68,7 +68,8 @@ function App() {
         {user && <Navbar />}
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={!user ? <Home /> : <Navigate to="/dashboard" />} />
+          <Route path="/" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+          <Route path="/home" element={!user ? <Home /> : <Navigate to="/dashboard" />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
 
