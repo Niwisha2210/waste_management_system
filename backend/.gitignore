@@ -1,0 +1,25 @@
+# Backend .gitignore
+node_modules/
+npm-debug.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+uploads/
+dist/
+build/
+*.log
+*.pem
+*.key
+*.crt
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
